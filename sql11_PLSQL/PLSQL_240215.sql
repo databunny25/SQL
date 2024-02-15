@@ -2,6 +2,7 @@ SET SERVEROUTPUT ON
 
 
 
+
 /*  문제2.
         치환변수(&)를 사용하면 숫자를 입력하면
         해당 구구단이 출력되도록 하시오.
@@ -233,7 +234,7 @@ BEGIN
     
     DBMS_OUTPUT.PUT_LINE('사원번호 : ' || v_emp_info.employee_id);
     DBMS_OUTPUT.PUT_LINE(', 사원이름 : ' || v_emp_info.last_name);
-    DBMS_OUTPUT.PUT_LI NE(', 업무 : ' || v_emp_info.job_id);
+    DBMS_OUTPUT.PUT_LINE(', 업무 : ' || v_emp_info.job_id);
 END;
 /
 
@@ -417,9 +418,6 @@ END;
 /
 
 
-
-
-
 DECLARE
     CURSOR emp_cursor IS
         SELECT *
@@ -450,5 +448,148 @@ BEGIN
             DBMS_OUTPUT.PUT_LINE(v_emp_table(eid).hire_date);
         END IF;
     END LOOP;   
+END;
+/
+
+
+
+DECLARE
+    CURSOR emp_dept_cursor IS
+        SELECT employee_id, last_name, job_id
+        FROM employees
+        WHERE department_id = &부서번호;
+        
+    v_emp_info emp_dept_cursor%ROWTYPE;
+BEGIN
+    -- 1) 해당 부서에 속한 사원의 정보를 출력
+    -- 2) 해당 부서에 속한 사원이 없는 경우 '해당 부서에 소속된 직원이 없습니다.'라는 메세지 출력
+    OPEN emp_dept_cursor;
+    
+    LOOP
+        FETCH emp_dept_cursor INTO v_emp_info;
+        EXIT WHEN emp_dept_cursor%NOTFOUND;
+        
+        -- 첫번째
+        DBMS_OUTPUT.PUT_LINE('첫번째 : ' || emp_dept_cursor%ROWCOUNT);
+        
+        DBMS_OUTPUT.PUT(v_emp_info.employee_id || ', ');
+        DBMS_OUTPUT.PUT(v_emp_info.last_name || ', ');
+        DBMS_OUTPUT.PUT_LINE(v_emp_info.job_id);
+    END LOOP;
+        
+        -- 두번째 => 현재 커서의 데이터 총 갯수
+        DBMS_OUTPUT.PUT_LINE('두번째 : ' || emp_dept_cursor%ROWCOUNT);
+        IF emp_dept_cursor%ROWCOUNT = 0 THEN
+            DBMS_OUTPUT.PUT_LINE('해당 부서에 소속된 직원이 없습니다.');
+        END IF;
+        
+    CLOSE emp_dept_cursor;
+END;
+/
+
+
+
+
+/*  문제1.
+        모든 사원의 사원번호, 이름, 부서이름 출력    */
+        
+DECLARE
+    CURSOR emp_cursor IS
+        SELECT employee_id, last_name, job_id
+        FROM employees;
+        
+    v_emp_info emp_cursor%ROWTYPE;
+BEGIN
+    OPEN emp_cursor;
+    
+    LOOP
+        FETCH emp_cursor INTO v_emp_info;
+        EXIT WHEN emp_cursor%NOTFOUND;        
+                
+        DBMS_OUTPUT.PUT(v_emp_info.employee_id || ', ');
+        DBMS_OUTPUT.PUT(v_emp_info.last_name || ', ');
+        DBMS_OUTPUT.PUT_LINE(v_emp_info.job_id);
+    END LOOP;
+    
+    CLOSE emp_cursor;    
+END;
+/
+
+-- by 프로페써
+-- 부서가 없는 사람이 빠질 수 있으므로...outer join해줘야 함
+DECLARE
+    CURSOR emp_cursor IS
+        SELECT employee_id eid, last_name ename, department_name dept_name
+        FROM employees e
+            LEFT OUTER JOIN departments d
+            ON e.department_id = d.department_id;
+    
+    v_emp_info emp_cursor%ROWTYPE;
+BEGIN
+    OPEN emp_cursor;
+    
+    LOOP
+        FETCH emp_cursor INTO v_emp_info;
+        EXIT WHEN emp_cursor%NOTFOUND;        
+                
+        DBMS_OUTPUT.PUT(v_emp_info.eid || ', ');
+        DBMS_OUTPUT.PUT(v_emp_info.ename || ', ');
+        DBMS_OUTPUT.PUT_LINE(v_emp_info.dept_name);
+    END LOOP;
+    
+    CLOSE emp_cursor;    
+END;
+/
+       
+ 
+/*  문제2.
+        부서번호가 50이거나 80인 사원들의 사원이름, 급여, 연봉 출력    */
+-- 연봉 : (급여 * 12) + (NVL(급여, 0) * NVL(커미션, 0)* 12)
+       
+DECLARE
+    CURSOR emp_cursor IS
+        SELECT last_name, salary, ((salary*12) + (NVL(salary, 0) * NVL(commission_pct, 0) * 12)) as annual
+        FROM employees
+        WHERE department_id IN (50, 80);
+        
+    v_emp_info emp_cursor%ROWTYPE;
+BEGIN
+    OPEN emp_cursor;
+    
+    LOOP
+        FETCH emp_cursor INTO v_emp_info;
+        EXIT WHEN emp_cursor%NOTFOUND;
+        
+        DBMS_OUTPUT.PUT(v_emp_info.last_name || ', ');
+        DBMS_OUTPUT.PUT(v_emp_info.salary || ', ');
+        DBMS_OUTPUT.PUT_LINE(v_emp_info.annual);
+    END LOOP;       
+        
+    CLOSE emp_cursor;
+END;
+/
+
+DECLARE
+    CURSOR emp_cursor IS
+        SELECT last_name, salary, commission_pct
+        FROM employees
+        WHERE department_id IN (50, 80);
+        
+    v_emp_info emp_cursor%ROWTYPE;
+    v_annual employees.salary%TYPE;
+BEGIN
+    OPEN emp_cursor;
+    
+    LOOP
+        FETCH emp_cursor INTO v_emp_info;
+        EXIT WHEN emp_cursor%NOTFOUND;
+        
+        v_annual := (v_emp_info.salary*12) + (NVL(v_emp_info.salary, 0) * NVL(v_emp_info.commission_pct, 0) * 12);
+        DBMS_OUTPUT.PUT(v_emp_info.last_name || ', ');
+        DBMS_OUTPUT.PUT(v_emp_info.salary || ', ');
+        DBMS_OUTPUT.PUT_LINE(v_annual);
+    END LOOP;       
+        
+    CLOSE emp_cursor;
 END;
 /
