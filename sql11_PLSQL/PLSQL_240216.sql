@@ -575,13 +575,13 @@ CREATE OR REPLACE PROCEDURE yedam_ju
 IS
     v_result VARCHAR2(100);
 BEGIN
-    --v_result := SUBSTR(TO_CHAR(p_ssn),1, 6) || '-' || SUBSTR(p_ssn, 7, 13);
     v_result := SUBSTR(p_ssn, 1, 6) || '-' || RPAD(SUBSTR(p_ssn, 7, 1), 7, '*');
     DBMS_OUTPUT.PUT_LINE(v_result);
 END;
 /
 
-EXECUTE yedam_ju('0511013689977'); --execute 안된다...사용하는 매개변수 제한하게된다...
+EXECUTE yedam_ju(0511013689977); --execute 안된다...사용하는 매개변수 제한하게된다...(?)
+--  EXECUTE로 실행 안되는 이유 찾아보기! <= 파라미터가 number일때는 실행 O, 파라미터 varchar2 실행 안됨
 
 DECLARE
     v_no VARCHAR2(1000);
@@ -591,6 +591,8 @@ BEGIN
 END;
 /
 
+
+
 /*
     2.
     사원번호를 입력할 경우
@@ -598,6 +600,31 @@ END;
     단, 해당사원이 없는 경우 "해당사원이 없습니다." 출력
     예) EXECUTE TEST_PRO(176)
 */
+
+CREATE TABLE emp_test
+AS
+    SELECT *
+    FROM employees;
+
+select * from emp_test;
+drop table emp_test;
+
+-- 프로시저 test_pro 생성
+CREATE OR REPLACE PROCEDURE test_pro
+(emp_id IN VARCHAR2)
+IS
+BEGIN
+    DELETE FROM emp_test WHERE employee_id = emp_id;
+    IF SQL%ROWCOUNT = 0 THEN
+        DBMS_OUTPUT.PUT_LINE('해당사원이 없습니다.');
+    END IF;
+END;
+/
+
+-- 실행 테스트
+EXECUTE TEST_PRO(176);
+EXECUTE TEST_PRO(1000);
+
 
 /*
 3.
@@ -608,6 +635,31 @@ END;
     실행) EXECUTE yedam_emp(176)
     실행결과) TAYLOR -> T*****  <- 이름 크기만큼 별표(*) 출력
 */
+CREATE OR REPLACE PROCEDURE yedam_emp
+(emp_id VARCHAR2)
+IS
+    v_name VARCHAR2(300);
+    v_star VARCHAR2(300);
+BEGIN
+    SELECT last_name
+    INTO v_name
+    FROM emp_test
+    WHERE employee_id = emp_id;
+    
+    FOR r IN 0..LENGTH(v_name)-2 LOOP
+        v_star := v_star || '*';
+    END LOOP;
+    
+    v_name := SUBSTR(v_name, 1, 1) || v_star;
+    
+    DBMS_OUTPUT.PUT_LINE(v_name);
+END;
+/
+
+EXECUTE yedam_emp(176);
+
+
+
 
 /*
     4.
@@ -617,6 +669,51 @@ END;
     단, 사원이 없을 경우 "해당 부서에는 사원이 없습니다."라고 출력(exception 사용)
     실행) EXECUTE get_emp(30)
 */
+CREATE TABLE dept_test
+AS
+    SELECT *
+    FROM departments;
+
+select * from dept_test;
+
+CREATE OR REPLACE PROCEDURE get_emp
+(deptid VARCHAR2)
+IS
+    CURSOR dept_cursor IS
+        SELECT employee_id,
+               last_name
+        FROM emp_test
+        WHERE department_id = deptid;
+        
+    v_emp_info dept_cursor%ROWTYPE;
+    no_emp_err EXCEPTION;
+BEGIN  
+    -- 커서for loop 사용시 커서가 닫혀서 invalid 에러 발생 => open, close
+    OPEN dept_cursor;
+        LOOP
+            FETCH dept_cursor
+            INTO v_emp_info;
+            
+            EXIT WHEN dept_cursor%NOTFOUND;
+            
+            DBMS_OUTPUT.PUT(v_emp_info.employee_id || ' ');
+            DBMS_OUTPUT.PUT_LINE(v_emp_info.last_name);
+        END LOOP;
+        
+        IF dept_cursor%ROWCOUNT = 0 THEN
+            RAISE no_emp_err;
+        END IF;
+    CLOSE dept_cursor;
+EXCEPTION
+    WHEN no_emp_err THEN
+        DBMS_OUTPUT.PUT_LINE('해당 부서에는 사원이 없습니다.');
+END;
+/
+
+EXECUTE get_emp(30);
+EXECUTE get_emp(300);
+
+select * from emp_test;
 
 /*
     5.
@@ -624,3 +721,32 @@ END;
     만약 입력한 사원이 없는 경우에는 ‘No search employee!!’라는 메시지를 출력하세요.(예외처리)
     실행) EXECUTE y_update(200, 10)
 */
+
+CREATE OR REPLACE PROCEDURE y_update
+( emp_id VARCHAR2,
+  inc_sal NUMBER)
+IS
+    v_salary NUMBER(30) := 0;
+BEGIN
+    SELECT salary
+    INTO v_salary
+    FROM emp_test
+    WHERE employee_id = emp_id;
+    
+    v_salary := v_salary + inc_sal;
+    
+    UPDATE emp_test
+    SET salary = v_salary
+    WHERE employee_id = emp_id;
+    
+EXCEPTION
+    WHEN no_data_found THEN
+        DBMS_OUTPUT.PUT_LINE('No search employee!!');
+END;
+/
+
+EXECUTE y_update(200, 10);
+
+select * from emp_test where employee_id = 200;
+select * from emp_test;
+ROLLBACK;
