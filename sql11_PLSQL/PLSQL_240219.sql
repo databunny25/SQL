@@ -247,3 +247,14 @@ SELECT last_name, subname(last_name)
 FROM   employees;
 
 
+
+
+
+/*  Packages    */
+
+--오버로드 : 패키지의 여러 서브 프로그램에서 동일한 이름 사용 가능
+
+
+
+/*  Triggers    */
+
